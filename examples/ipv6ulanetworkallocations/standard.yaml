@@ -6,10 +6,12 @@ metadata:
 spec:
   # Regional ULA pool ID from aws-ipam status
   regionalPoolId: ipam-pool-0123456789abcdef0
+  # IPAM scope ID from aws-ipam status.ipam.privateDefaultScopeId
+  scopeId: ipam-scope-0123456789abcdef0
+  region: us-east-1
 
-  aws:
-    providerConfig: default
-    region: us-east-1
+  providerConfigRef:
+    name: default
 
   # VPC sizing - /48 is typical for IPv6 ULA VPCs
   vpc:
@@ -21,8 +23,7 @@ spec:
     - a
     - b
     - c
-    types:
-      public:
-        netmaskLength: 64
-      private:
-        netmaskLength: 64
+    public:
+      netmaskLength: 64
+    private:
+      netmaskLength: 64

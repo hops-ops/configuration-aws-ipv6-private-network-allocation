@@ -8,16 +8,27 @@
 {{ $name := $metadata.name }}
 {{ $namespace := $metadata.namespace | default "default" }}
 
-# Regional ULA pool ID from aws-ipam status (required)
+# Regional pool ID from aws-ipam status (required)
 {{ $regionalPoolId := $spec.regionalPoolId }}
+
+# IPAM scope ID from aws-ipam status (required for child pools)
+{{ $scopeId := $spec.scopeId }}
 
 # Management policies
 {{ $managementPolicies := $spec.managementPolicies | default (list "*") }}
 
-# AWS configuration
-{{ $aws := $spec.aws | default (dict) }}
-{{ $awsProviderConfig := $aws.providerConfig | default "default" }}
-{{ $awsRegion := $aws.region | default "us-east-1" }}
+# Provider config - single provider pattern with name and kind
+{{ $providerConfigRef := $spec.providerConfigRef | default (dict) }}
+{{ $providerConfigName := $providerConfigRef.name | default "default" }}
+{{ $providerConfigKind := $providerConfigRef.kind | default "ProviderConfig" }}
+
+# AWS configuration - at spec level (matching IPv4)
+{{ $awsRegion := $spec.region }}
+{{ $awsLocale := $spec.locale | default "" }}
+
+# Default tags merged with user-provided tags
+{{ $defaultTags := dict "hops" "true" "managed-by" "crossplane" "address-family" "ipv6" }}
+{{ $awsTags := merge $defaultTags ($spec.tags | default (dict)) }}
 
 # VPC sizing - /48 default for ULA IPv6
 {{ $vpc := $spec.vpc | default (dict) }}
@@ -26,12 +37,9 @@
 # Subnet configuration - /64 is required for AWS IPv6 subnets
 {{ $subnets := $spec.subnets | default (dict) }}
 {{ $availabilityZones := $subnets.availabilityZones | default (list "a" "b" "c") }}
-{{ $subnetTypes := $subnets.types | default (dict) }}
-
-{{ $publicConfig := $subnetTypes.public | default (dict) }}
-{{ $privateConfig := $subnetTypes.private | default (dict) }}
+{{ $publicConfig := $subnets.public | default (dict) }}
+{{ $privateConfig := $subnets.private | default (dict) }}
+{{ $publicEnabled := $publicConfig.enabled | default true }}
+{{ $privateEnabled := $privateConfig.enabled | default true }}
 {{ $publicNetmaskLength := $publicConfig.netmaskLength | default 64 }}
 {{ $privateNetmaskLength := $privateConfig.netmaskLength | default 64 }}
-
-# Default tags
-{{ $defaultTags := dict "hops" "true" "managed-by" "crossplane" "address-family" "ipv6" }}

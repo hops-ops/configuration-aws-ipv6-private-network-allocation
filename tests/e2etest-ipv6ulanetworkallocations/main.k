@@ -9,7 +9,7 @@
 #
 # The test:
 # 1. Creates an IPv6ULANetworkAllocation with VPC /56 and subnets in 2 AZs
-# 2. Verifies VPC pool, subnet pools, and allocations become Ready
+# 2. Verifies VPC pool, subnet pool, and allocations become Ready
 # 3. Verifies CIDRs are populated in status
 # 4. Deletes everything on cleanup
 
@@ -39,7 +39,12 @@ _region = "us-east-2"
 # This is the ULA IPv6 pool created by the persistent IPAM
 # Update this after running aws-ipam e2e test:
 #   aws ec2 describe-ipam-pools --query 'IpamPools[?contains(Description, `ULA`)].IpamPoolId'
-_regional_pool_id = "ipam-pool-REPLACE_WITH_YOUR_ULA_POOL_ID"
+_regional_pool_id = "ipam-pool-0769c239ba0259975"
+
+# IPAM scope ID from aws-ipam e2e test
+# Update this after running aws-ipam e2e test:
+#   aws ec2 describe-ipam-scopes --query 'IpamScopes[?IsDefault==`true` && IpamScopeType==`private`].IpamScopeId'
+_scope_id = "ipam-scope-0ba795a6462cbb518"
 
 _items = [
     metav1alpha1.E2ETest{
@@ -55,11 +60,11 @@ _items = [
                     }
                     spec: {
                         regionalPoolId: _regional_pool_id
-                        aws: {
-                            providerConfig: "default"
-                            region: _region
+                        scopeId: _scope_id
+                        region: _region
+                        providerConfigRef: {
+                            name: "default"
                         }
-                        # Smaller VPC for e2e test
                         vpc: {
                             netmaskLength: 56
                         }
@@ -67,13 +72,11 @@ _items = [
                         # AWS requires /64 for all IPv6 subnets
                         subnets: {
                             availabilityZones: ["a", "b"]
-                            types: {
-                                public: {
-                                    netmaskLength: 64
-                                }
-                                private: {
-                                    netmaskLength: 64
-                                }
+                            public: {
+                                netmaskLength: 64
+                            }
+                            private: {
+                                netmaskLength: 64
                             }
                         }
                     }

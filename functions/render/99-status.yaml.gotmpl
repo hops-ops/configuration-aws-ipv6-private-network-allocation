@@ -9,8 +9,7 @@ status:
   ready: {{ $allSubnetsReady }}
   cidr: {{ $observedVpcCidr | default "Pending" }}
   vpcPoolId: {{ $observedVpcPoolId | default "Pending" }}
-  privatePoolId: {{ $observedPrivatePoolId | default "Pending" }}
-  publicPoolId: {{ $observedPublicPoolId | default "Pending" }}
+  subnetPoolId: {{ $observedSubnetPoolId | default "Pending" }}
   {{ if $allSubnetsReady }}
   subnets:
     {{ range $key, $value := $subnetCidrs }}

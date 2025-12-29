@@ -6,10 +6,12 @@ metadata:
 spec:
   # Regional ULA pool ID from aws-ipam status
   regionalPoolId: ipam-pool-0123456789abcdef0
+  # IPAM scope ID from aws-ipam status.ipam.privateDefaultScopeId
+  scopeId: ipam-scope-0123456789abcdef0
+  region: us-west-2
 
-  aws:
-    providerConfig: default
-    region: us-west-2
+  providerConfigRef:
+    name: default
 
   # Smaller VPC for dev - /56 instead of /48
   vpc:
@@ -20,8 +22,7 @@ spec:
     availabilityZones:
     - a
     - b
-    types:
-      public:
-        netmaskLength: 64
-      private:
-        netmaskLength: 64
+    public:
+      netmaskLength: 64
+    private:
+      netmaskLength: 64

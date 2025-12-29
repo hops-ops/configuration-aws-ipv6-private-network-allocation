@@ -21,9 +21,7 @@ The configuration creates a hierarchy of IPAM pools:
 ```
 Regional Pool (from aws-ipam, e.g., /40 or /44)
 └── VPC Pool (/48 default)
-    ├── Private Subnet Pool
-    │   └── Allocations per AZ (/64, AWS requirement)
-    └── Public Subnet Pool
+    └── Subnet Pool
         └── Allocations per AZ (/64, AWS requirement)
 ```
 
@@ -40,6 +38,10 @@ metadata:
 spec:
   # Required: regional ULA pool ID from aws-ipam status
   regionalPoolId: ipam-pool-0123456789abcdef0
+  # Required: IPAM scope ID from aws-ipam status.ipam.privateDefaultScopeId
+  scopeId: ipam-scope-0123456789abcdef0
+  # Required: AWS region
+  region: us-east-1
 ```
 
 Uses defaults:
@@ -57,10 +59,11 @@ metadata:
   namespace: infra
 spec:
   regionalPoolId: ipam-pool-0123456789abcdef0
+  scopeId: ipam-scope-0123456789abcdef0
+  region: us-east-1
 
-  aws:
-    providerConfig: default
-    region: us-east-1
+  providerConfigRef:
+    name: default
 
   vpc:
     netmaskLength: 48
@@ -70,11 +73,10 @@ spec:
     - a
     - b
     - c
-    types:
-      public:
-        netmaskLength: 64
-      private:
-        netmaskLength: 64
+    public:
+      netmaskLength: 64
+    private:
+      netmaskLength: 64
 ```
 
 ### Custom Sizes Example
@@ -87,10 +89,11 @@ metadata:
   namespace: infra
 spec:
   regionalPoolId: ipam-pool-0123456789abcdef0
+  scopeId: ipam-scope-0123456789abcdef0
+  region: us-west-2
 
-  aws:
-    providerConfig: default
-    region: us-west-2
+  providerConfigRef:
+    name: default
 
   # Smaller VPC for dev - /56 instead of /48
   vpc:
@@ -101,11 +104,10 @@ spec:
     availabilityZones:
     - a
     - b
-    types:
-      public:
-        netmaskLength: 64
-      private:
-        netmaskLength: 64
+    public:
+      netmaskLength: 64
+    private:
+      netmaskLength: 64
 ```
 
 ## Status
@@ -117,15 +119,14 @@ status:
   ready: true
   cidr: "fd00:1234:5678::/48"
   vpcPoolId: "ipam-pool-vpc-12345"
-  privatePoolId: "ipam-pool-private-12345"
-  publicPoolId: "ipam-pool-public-12345"
+  subnetPoolId: "ipam-pool-subnet-12345"
   subnets:
-    private-a: "fd00:1234:5678:1::/64"
-    private-b: "fd00:1234:5678:2::/64"
-    private-c: "fd00:1234:5678:3::/64"
-    public-a: "fd00:1234:5678:100::/64"
-    public-b: "fd00:1234:5678:101::/64"
-    public-c: "fd00:1234:5678:102::/64"
+    private-a: "fd00:1234:5678:100::/64"
+    private-b: "fd00:1234:5678:101::/64"
+    private-c: "fd00:1234:5678:102::/64"
+    public-a: "fd00:1234:5678:0::/64"
+    public-b: "fd00:1234:5678:1::/64"
+    public-c: "fd00:1234:5678:2::/64"
 ```
 
 ## Spec Reference
@@ -133,12 +134,18 @@ status:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `regionalPoolId` | string | (required) | ID of the regional ULA IPAM pool to allocate from |
-| `aws.providerConfig` | string | `"default"` | AWS ProviderConfig name |
-| `aws.region` | string | `"us-east-1"` | AWS region |
+| `scopeId` | string | (required) | IPAM scope ID for creating child pools |
+| `region` | string | (required) | AWS region where the pool resources are managed |
+| `locale` | string | - | Locale for CIDR allocations (optional) |
+| `tags` | map[string]string | - | Additional tags merged with defaults |
+| `providerConfigRef.name` | string | `"default"` | AWS ProviderConfig name |
+| `providerConfigRef.kind` | string | `"ProviderConfig"` | ProviderConfig kind |
 | `vpc.netmaskLength` | integer | `48` | VPC CIDR netmask (44-60) |
 | `subnets.availabilityZones` | []string | `["a", "b", "c"]` | AZ suffixes |
-| `subnets.types.public.netmaskLength` | integer | `64` | Public subnet netmask (must be 64) |
-| `subnets.types.private.netmaskLength` | integer | `64` | Private subnet netmask (must be 64) |
+| `subnets.public.enabled` | boolean | `true` | Whether to create public subnets |
+| `subnets.public.netmaskLength` | integer | `64` | Public subnet netmask (must be 64) |
+| `subnets.private.enabled` | boolean | `true` | Whether to create private subnets |
+| `subnets.private.netmaskLength` | integer | `64` | Private subnet netmask (must be 64) |
 | `managementPolicies` | []string | `["*"]` | Crossplane management policies |
 
 ## Observed-State Gating
@@ -146,8 +153,8 @@ status:
 The composition uses observed-state gating to create resources in stages:
 
 1. **Stage 1**: VPC pool + CIDR (always created)
-2. **Stage 2**: Subnet pools + CIDRs (after VPC pool ready)
-3. **Stage 3**: Subnet allocations (after subnet pools ready)
+2. **Stage 2**: Subnet pool + CIDR (after VPC pool ready)
+3. **Stage 3**: Subnet allocations (after subnet pool ready)
 
 This prevents premature resource creation and ensures CIDRs are properly allocated before dependent resources reference them.
 

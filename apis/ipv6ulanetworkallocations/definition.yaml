@@ -27,9 +27,11 @@ spec:
         properties:
           spec:
             type: object
-            description: Desired state for the private IPv6 network allocation.
+            description: Desired state for the ULA IPv6 network allocation.
             required:
             - regionalPoolId
+            - scopeId
+            - region
             properties:
               managementPolicies:
                 type: array
@@ -45,21 +47,41 @@ spec:
                   - LateInitialize
                 default:
                 - "*"
+              providerConfigRef:
+                type: object
+                description: Reference to the AWS ProviderConfig.
+                properties:
+                  name:
+                    type: string
+                    description: Name of the ProviderConfig. Defaults to "default".
+                  kind:
+                    type: string
+                    description: Kind of the ProviderConfig. Defaults to "ProviderConfig".
+                    default: ProviderConfig
               regionalPoolId:
                 type: string
                 description: |
                   ID of the regional ULA IPAM pool to allocate from (from aws-ipam status).
-                  This pool should be a /40 or /44 regional pool from your ULA /32.
-              aws:
+                  This pool should be the regional pool created by aws-ipam.
+              scopeId:
+                type: string
+                description: |
+                  IPAM scope ID (from aws-ipam status.ipam.privateDefaultScopeId).
+                  Required for creating child pools.
+              region:
+                type: string
+                description: AWS region where the pool resources are managed.
+              locale:
+                type: string
+                description: |
+                  AWS region where CIDRs from these pools can be allocated.
+                  When set, only VPCs in this region can use addresses from the pools.
+                  Leave unset to inherit from parent pool or let AWS default.
+              tags:
                 type: object
-                description: AWS configuration.
-                properties:
-                  providerConfig:
-                    type: string
-                    description: ProviderConfig for AWS API operations. Defaults to "default".
-                  region:
-                    type: string
-                    description: AWS region for the allocation. Defaults to us-east-1.
+                description: Additional tags to apply to AWS resources. Merged with default tags.
+                additionalProperties:
+                  type: string
               vpc:
                 type: object
                 description: VPC sizing configuration.
@@ -83,49 +105,50 @@ spec:
                     - a
                     - b
                     - c
-                  types:
+                  public:
                     type: object
-                    description: Subnet type configurations.
+                    description: Public subnet configuration.
                     properties:
-                      public:
-                        type: object
-                        description: Public subnet configuration.
-                        properties:
-                          netmaskLength:
-                            type: integer
-                            description: Netmask length for public subnets. Must be 64 (AWS requirement).
-                            minimum: 64
-                            maximum: 64
-                            default: 64
-                      private:
-                        type: object
-                        description: Private subnet configuration.
-                        properties:
-                          netmaskLength:
-                            type: integer
-                            description: Netmask length for private subnets. Must be 64 (AWS requirement).
-                            minimum: 64
-                            maximum: 64
-                            default: 64
+                      enabled:
+                        type: boolean
+                        description: Whether to create public subnets. Defaults to true.
+                        default: true
+                      netmaskLength:
+                        type: integer
+                        description: Netmask length for public subnets. Must be 64 (AWS requirement).
+                        minimum: 64
+                        maximum: 64
+                        default: 64
+                  private:
+                    type: object
+                    description: Private subnet configuration.
+                    properties:
+                      enabled:
+                        type: boolean
+                        description: Whether to create private subnets. Defaults to true.
+                        default: true
+                      netmaskLength:
+                        type: integer
+                        description: Netmask length for private subnets. Must be 64 (AWS requirement).
+                        minimum: 64
+                        maximum: 64
+                        default: 64
           status:
             type: object
-            description: Observed state of the private IPv6 network allocation.
+            description: Observed state of the ULA IPv6 network allocation.
             properties:
               ready:
                 type: boolean
                 description: True when all allocations are complete.
               cidr:
                 type: string
-                description: Allocated VPC ULA CIDR block.
+                description: Allocated VPC CIDR block.
               vpcPoolId:
                 type: string
                 description: ID of the VPC IPAM pool.
-              privatePoolId:
+              subnetPoolId:
                 type: string
-                description: ID of the private subnet IPAM pool.
-              publicPoolId:
-                type: string
-                description: ID of the public subnet IPAM pool.
+                description: ID of the subnet IPAM pool.
               subnets:
                 type: object
                 description: Map of subnet name to allocated CIDR.
